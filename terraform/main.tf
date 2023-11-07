@@ -16,17 +16,18 @@ provider "yandex" {
 resource "yandex_vpc_network" "foo" {}
 
 resource "yandex_vpc_subnet" "foo" {
-  zone           = "ru-central1-a"
+  zone           = local.zone
   network_id     = yandex_vpc_network.foo.id
   v4_cidr_blocks = ["10.5.0.0/24"]
 }
 
-resource "yandex_container_registry" "registry1" {
-  name = "registry1"
-}
+# resource "yandex_container_registry" "registry1" {
+#   name = "registry"
+# }
 
 locals {
-  folder_id = "<INSERT YOUR FOLDER ID>"
+  zone      = "ru-central1-a"
+  folder_id = "b1g2d4bl62dtukcmstmm"
   service-accounts = toset([
     "catgpt-sa",
   ])
@@ -50,31 +51,31 @@ data "yandex_compute_image" "coi" {
   family = "container-optimized-image"
 }
 resource "yandex_compute_instance" "catgpt-1" {
-    platform_id        = "standard-v2"
-    service_account_id = yandex_iam_service_account.service-accounts["catgpt-sa"].id
-    resources {
-      cores         = 2
-      memory        = 1
-      core_fraction = 5
+  platform_id        = "standard-v2"
+  service_account_id = yandex_iam_service_account.service-accounts["catgpt-sa"].id
+  resources {
+    cores         = 2
+    memory        = 1
+    core_fraction = 5
+  }
+  scheduling_policy {
+    preemptible = true
+  }
+  network_interface {
+    subnet_id = yandex_vpc_subnet.foo.id
+    nat       = true
+  }
+  boot_disk {
+    initialize_params {
+      type     = "network-hdd"
+      size     = "30"
+      image_id = data.yandex_compute_image.coi.id
     }
-    scheduling_policy {
-      preemptible = true
-    }
-    network_interface {
-      subnet_id = "${yandex_vpc_subnet.foo.id}"
-      nat = true
-    }
-    boot_disk {
-      initialize_params {
-        type = "network-hdd"
-        size = "30"
-        image_id = data.yandex_compute_image.coi.id
-      }
-    }
-    metadata = {
-      docker-compose = file("${path.module}/docker-compose.yaml")
-      ssh-keys  = "ubuntu:${file("~/.ssh/devops_training.pub")}"
-    }
+  }
+  metadata = {
+    docker-compose = file("${path.module}/docker-compose.yaml")
+    ssh-keys       = "ubuntu:${file("~/.ssh/devops_training.pub")}"
+  }
 }
 
 

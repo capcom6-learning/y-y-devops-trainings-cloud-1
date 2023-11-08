@@ -4,4 +4,16 @@ services:
     container_name: catgpt
     image: "cr.yandex/crp9jmjmhvtgv70dbig3/catgpt:main"
     restart: always
-    network_mode: "host"
+    ports:
+      - 8080:8080
+      - 9090:9090
+    # network_mode: "host"
+  ua:
+    image: cr.yandex/yc/unified-agent
+    volumes:
+      - /proc:/ua_proc:ro
+      - /etc/yandex/unified_agent/config.yml:/etc/yandex/unified_agent/config.tmpl.yml:ro
+    environment:
+      PROC_DIRECTORY: /ua_proc
+      FOLDER_ID: ${folder_id}
+    restart: always

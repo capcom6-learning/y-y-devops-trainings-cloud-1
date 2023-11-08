@@ -94,8 +94,9 @@ resource "yandex_compute_instance_group" "catgpt" {
       }
     }
     metadata = {
-      docker-compose = file("${path.module}/docker-compose.yaml")
+      docker-compose = templatefile("${path.module}/docker-compose.yaml", { folder_id = local.folder_id })
       ssh-keys       = "ubuntu:${file("~/.ssh/devops_training.pub")}"
+      user-data      = "${templatefile("${path.module}/assets/cloud-init.yaml", { folder_id = local.folder_id })}"
     }
   }
 

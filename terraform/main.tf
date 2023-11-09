@@ -187,33 +187,43 @@ resource "yandex_alb_load_balancer" "catgpt-balancer" {
   }
 }
 
-# resource "yandex_compute_instance" "catgpt-1" {
-#   platform_id        = "standard-v2"
-#   service_account_id = yandex_iam_service_account.service-accounts["catgpt-sa"].id
-#   resources {
-#     cores         = 2
-#     memory        = 1
-#     core_fraction = 5
-#   }
-#   scheduling_policy {
-#     preemptible = true
-#   }
-#   network_interface {
-#     subnet_id = data.yandex_vpc_subnet.foo.id
-#     nat       = true
-#   }
-#   boot_disk {
-#     initialize_params {
-#       type     = "network-hdd"
-#       size     = "30"
-#       image_id = data.yandex_compute_image.coi.id
-#     }
-#   }
-#   metadata = {
-#     serial-port-enable = 1
-#     docker-compose     = file("${path.module}/docker-compose.yaml")
-#     ssh-keys           = "ubuntu:${file("~/.ssh/devops_training.pub")}"
-#   }
-# }
+resource "yandex_monitoring_dashboard" "catgpt-dashboard" {
+  name  = "catgpt-dashboard"
+  title = "CatGPT Dashboard"
 
+  widgets {
+    chart {
+      chart_id = "cats-count-widget"
+      title    = "Cats count"
+      queries {
+        target {
+          query = "sum(\"app.enhanced_photo_count\"{folderId=\"${local.folder_id}\", service=\"custom\"}) by \"cat_type\""
+        }
+      }
+    }
+    position {
+      x = 0
+      y = 0
+      h = 8
+      w = 12
+    }
+  }
 
+  widgets {
+    chart {
+      chart_id = "http-requests-widget"
+      title    = "HTTP requests"
+      queries {
+        target {
+          query = "sum(\"app.http_response_count\"{folderId=\"${local.folder_id}\", service=\"custom\"}) by (\"handler\",\"method\",\"code\")"
+        }
+      }
+    }
+    position {
+      x = 12
+      y = 0
+      h = 8
+      w = 12
+    }
+  }
+}

@@ -4,8 +4,6 @@ import (
 	"context"
 	"embed"
 	"encoding/base64"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"html/template"
 	"image"
 	"io"
@@ -13,6 +11,9 @@ import (
 	"math/rand"
 	"net/http"
 	"strings"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type IndexData struct {
@@ -97,6 +98,13 @@ func ping(w http.ResponseWriter, r *http.Request) {
 }
 
 var (
+	responseDurationVec = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "http_response_duration_seconds",
+			Help: "Duration of HTTP requests.",
+		},
+		[]string{"handler", "method"},
+	)
 	responseCounterVec = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "http_response_count",
@@ -114,11 +122,13 @@ var (
 func serve(ctx context.Context, public string, private string) {
 	indexChain := promhttp.InstrumentHandlerCounter(
 		responseCounterVec.MustCurryWith(prometheus.Labels{"handler": "/"}),
-		http.HandlerFunc(index))
+		promhttp.InstrumentHandlerDuration(responseDurationVec.MustCurryWith(prometheus.Labels{"handler": "/"}),
+			http.HandlerFunc(index)))
 	pingChain := promhttp.InstrumentHandlerCounter(
 		responseCounterVec.MustCurryWith(prometheus.Labels{"handler": "/ping"}),
-		http.HandlerFunc(ping))
-	prometheus.MustRegister(responseCounterVec, catCounterVec)
+		promhttp.InstrumentHandlerDuration(responseDurationVec.MustCurryWith(prometheus.Labels{"handler": "/ping"}),
+			http.HandlerFunc(ping)))
+	prometheus.MustRegister(responseCounterVec, catCounterVec, responseDurationVec)
 
 	http.HandleFunc("/", indexChain)
 	http.HandleFunc("/ping", pingChain)
